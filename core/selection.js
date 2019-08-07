@@ -20,6 +20,7 @@ class Selection {
     this.composing = false;
     this.mouseDown = false;
     this.root = this.scroll.domNode;
+    this.context = this.getContext();
     this.cursor = this.scroll.create('cursor', this);
     // savedRange is last non-null range
     this.savedRange = new Range(0, 0);
@@ -131,6 +132,22 @@ class Selection {
     this.update();
   }
 
+    getContext() {
+      const supportsShadowDOM = !!HTMLElement.prototype.attachShadow;
+      let ctx = document;
+      if (!!HTMLElement.prototype.attachShadow) {
+        let el = this.root.parentNode;
+        while (!(el === document || el instanceof ShadowRoot)) {
+          el = el.parentNode;
+        }
+        // HACK: if the ShadowRoot doesn't support getSelection then the browser should allow selection
+        //       // to pass through the ShadowDOM boundary - use document
+        ctx = (el instanceof ShadowRoot && typeof el.getSelection === 'function') ? el : document;
+      }
+      debug.info('getContext', ctx);
+      return ctx;
+    }
+
   getBounds(index, length = 0) {
     const scrollLength = this.scroll.length();
     index = Math.min(index, scrollLength - 1);
@@ -175,7 +192,7 @@ class Selection {
   }
 
   getNativeRange() {
-    const selection = document.getSelection();
+    const selection = this.context.getSelection();
     if (selection == null || selection.rangeCount <= 0) return null;
     const nativeRange = selection.getRangeAt(0);
     if (nativeRange == null) return null;
@@ -193,8 +210,8 @@ class Selection {
 
   hasFocus() {
     return (
-      document.activeElement === this.root ||
-      contains(this.root, document.activeElement)
+      this.context.activeElement === this.root ||
+      contains(this.root, this.context.activeElement)
     );
   }
 
